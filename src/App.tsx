@@ -87,10 +87,7 @@ function App() {
             <OrderBoard orders={orderList.bids.slice(-ItemBoardLimit)} />
           </div>
           <div className="w-6/12">
-            <OrderBoard
-              isSellBoard={true}
-              orders={orderList.asks.slice(-ItemBoardLimit)}
-            />
+            <OrderBoard isAsks orders={orderList.asks.slice(-ItemBoardLimit)} />
           </div>
         </div>
         <Footer onToggle={handleToggle} onKillFeed={handleKillFeed} />
