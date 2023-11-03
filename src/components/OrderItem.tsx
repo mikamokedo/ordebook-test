@@ -12,7 +12,7 @@ type OrderItemProps = {
 };
 const OrderItem: React.FC<OrderItemProps> = ({ isSellBoard, order }) => {
   return (
-    <div className="flex uppercase">
+    <div className="flex py-1">
       <div
         className={` text-[12px] w-4/12 text-right ${
           isSellBoard ? 'order-3' : ''

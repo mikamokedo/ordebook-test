@@ -1,57 +1,99 @@
 import React, { useEffect, useState } from 'react';
 import Header from './components/Header';
-import OrderHistory from './components/OrderHistory';
-import Bottom from './components/Bottom';
-import useWebSocket, { ReadyState } from 'react-use-websocket';
-
-const SOCKET_URL = 'wss://www.cryptofacilities.com/ws/v1';
+import OrderBoard from './components/OrderBoard';
+import Footer from './components/Footer';
+import useWebSocket from 'react-use-websocket';
+import {
+  selectOptions,
+  SOCKET_URL,
+  ItemBoardLimit,
+  initValueOrderList,
+} from './ultils/const';
+import { handleData, mergeData } from './ultils/helper';
+import { ProductsEnum, ProcessedData } from './ultils/types';
 
 function App() {
-  const { sendMessage, lastMessage, readyState } = useWebSocket(SOCKET_URL);
-  const [messageHistory, setMessageHistory] = useState([]);
+  const { sendMessage, lastMessage, getWebSocket } = useWebSocket(SOCKET_URL);
+  const [productId, setProductId] = useState(ProductsEnum.PI_XBTUSD);
+  const [isFeedKilled, setIsFeedKilled] = useState(false);
+  const [groupSelected, setGroupSelected] = useState(
+    selectOptions[ProductsEnum.PI_XBTUSD][0]
+  );
+  const [orderList, setOrderList] = useState<ProcessedData>(initValueOrderList);
 
   useEffect(() => {
-    if (lastMessage !== null) {
-      // setMessageHistory((prev: any) => prev.concat(lastMessage));
-      console.log(lastMessage.data);
+    if (!lastMessage) {
+      return;
     }
-  }, [lastMessage, setMessageHistory]);
+    const messageData = JSON.parse(lastMessage?.data);
+    if (messageData?.asks) {
+      const newData = handleData(messageData);
+      setOrderList(mergeData(orderList, newData));
+    }
+  }, [lastMessage]);
+
   useEffect(() => {
-    if (readyState === 1) {
-      sendMessage(
-        JSON.stringify({
-          event: 'subscribe',
-          feed: 'book_ui_1',
-          product_ids: ['PI_XBTUSD'],
-        })
-      );
+    function connect(product: string) {
+      const oppositeProductId =
+        product === ProductsEnum.PI_XBTUSD
+          ? ProductsEnum.PI_ETHUSD
+          : ProductsEnum.PI_XBTUSD;
+
+      const unSubscribeMessage = {
+        event: 'unsubscribe',
+        feed: 'book_ui_1',
+        product_ids: [oppositeProductId],
+      };
+      sendMessage(JSON.stringify(unSubscribeMessage));
+
+      const subscribeMessage = {
+        event: 'subscribe',
+        feed: 'book_ui_1',
+        product_ids: [product],
+      };
+      sendMessage(JSON.stringify(subscribeMessage));
     }
-  }, [readyState]);
+
+    if (isFeedKilled) {
+      getWebSocket()?.close();
+    } else {
+      connect(productId);
+    }
+  }, [isFeedKilled, productId, sendMessage, getWebSocket]);
+
+  const handleToggle = () => {
+    setProductId((state) =>
+      state === ProductsEnum.PI_XBTUSD
+        ? ProductsEnum.PI_ETHUSD
+        : ProductsEnum.PI_XBTUSD
+    );
+    setOrderList(initValueOrderList);
+  };
+
+  const handleKillFeed = () => {
+    setIsFeedKilled((state) => !state);
+  };
 
   return (
     <div className="flex justify-center mt-[50px]">
       <div className="w-[800px] h-[600px] bg-black">
-        <Header />
+        <Header
+          selectOptions={selectOptions[productId]}
+          value={groupSelected}
+          onChange={setGroupSelected}
+        />
         <div className="flex order-book">
           <div className="w-6/12">
-            <OrderHistory
-              orders={[
-                { total: 1000.5, size: 50, price: 55042.4 },
-                { total: 544.5, size: 21, price: 2352.4 },
-              ]}
-            />
+            <OrderBoard orders={orderList.bids.slice(-ItemBoardLimit)} />
           </div>
           <div className="w-6/12">
-            <OrderHistory
+            <OrderBoard
               isSellBoard={true}
-              orders={[
-                { total: 544.5, size: 21, price: 2352.4 },
-                { total: 1000.5, size: 50, price: 55042.4 },
-              ]}
+              orders={orderList.asks.slice(-ItemBoardLimit)}
             />
           </div>
         </div>
-        <Bottom />
+        <Footer onToggle={handleToggle} onKillFeed={handleKillFeed} />
       </div>
     </div>
   );

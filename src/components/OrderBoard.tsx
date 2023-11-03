@@ -20,7 +20,7 @@ const OrderHistory: React.FC<OrderHistoryProps> = ({ isSellBoard, orders }) => {
         </div>
       </div>
       {orders.map((item) => (
-        <OrderItem order={item} isSellBoard={isSellBoard} />
+        <OrderItem order={item} isSellBoard={isSellBoard} key={item.price} />
       ))}
     </div>
   );
